@@ -15,7 +15,7 @@ from decision_transformer.evaluation.evaluate_episodes import (
     evaluate_episode_rtg,
 )
 import virtualTB
-from decision_transformer.models.decision_transformer import DecisionTransformer
+from decision_transformer.models.decision_transformer import MDT4Rec
 from decision_transformer.models.mlp_bc import MLPBCModel
 from decision_transformer.training.act_trainer import ActTrainer
 from decision_transformer.training.seq_trainer import SequenceTrainer
@@ -53,33 +53,7 @@ def experiment(
     group_name = f"{env_name}-{dataset}-{model_type}-{description}"
     exp_prefix = f"{seed}-{random.randint(int(1e5), int(1e6) - 1)}"
     
-    if env_name == "hopper":
-        env = gym.make("hopper-medium-v2")
-        max_ep_len = 1000
-        env_targets = [3600, 2600, 2200, 1800]  # evaluation conditioning targets
-        scale = 1000.0  # normalization for rewards/returns
-    elif env_name == "halfcheetah":
-        env = gym.make("halfcheetah-medium-v2")
-        max_ep_len = 1000
-        env_targets = [12000, 8000, 6000, 4500]
-        scale = 1000.0
-    elif env_name == "walker2d":
-        env = gym.make("walker2d-medium-v2")
-        max_ep_len = 1000
-        env_targets = [5000, 4000, 3000, 2500]
-        scale = 1000.0
-    elif env_name == 'reacher2d':
-        from decision_transformer.envs.reacher_2d import Reacher2dEnv
-        env = Reacher2dEnv()
-        max_ep_len = 100
-        env_targets = [76, 40]
-        scale = 10.
-    elif env_name == "kitchen":
-        env = gym.make("kitchen-complete-v0")
-        max_ep_len = 1000
-        env_targets = [5, 4, 3, 2, 1]
-        scale = 1.0
-    elif env_name == 'TB':
+    if env_name == 'TB':
         env = gym.make('VirtualTB-v0')
         max_ep_len = 1000
         env_targets = [10000, 5000]
@@ -99,14 +73,10 @@ def experiment(
     # load dataset
     data_suffix = variant["data_suffix"]
     ratio_str = "-" + str(variant["sample_ratio"]) + "-" + data_suffix if variant["sample_ratio"] < 1 else ""
-    if env_name in ["walker2d", "hopper", "halfcheetah", "reacher2d"]:
-        dataset_path = f"../data/mujoco/{env_name}-{dataset}{ratio_str}-v2.pkl"
-    elif env_name == "kitchen":
-        dataset_path = f"../data/kitchen/{env_name}-{dataset}{ratio_str}-v0.pkl"
-    elif env_name == "TB":
+    if env_name == "TB":
         dataset_path = f"../data/TB/TB-expert.pkl"
     else: 
-        raise NotImplementedError
+        dataset_path = f"../data/{env_name}/{env_name}-expert.pkl"
     with open(dataset_path, "rb") as f:
         trajectories = pickle.load(f)
     
@@ -283,8 +253,8 @@ def experiment(
             }
         return fn
     
-    if model_type == "dt":
-        model = DecisionTransformer(
+    if model_type == "mdt4rec":
+        model = MDT4Rec(
             args=variant,
             state_dim=state_dim,
             act_dim=act_dim,
@@ -393,7 +363,7 @@ def experiment(
     )
 
 
-    if "dt" in model_type:
+    if "mdt4rec" in model_type:
         trainer = SequenceTrainer(
             args=variant,
             model=model,
@@ -509,4 +479,4 @@ if __name__ == "__main__":
     parser.add_argument("--co_lambda", type=float, default=0.1)
     
     args = parser.parse_args()
-    experiment("d4rl-experiment", variant=vars(args))
+    experiment("experiment", variant=vars(args))
